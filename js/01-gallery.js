@@ -1,18 +1,7 @@
 import { galleryItems } from './gallery-items.js';
 
-const galleryContainer = document.querySelector('.gallery');
-
-let currentInstance = null;
-
-const addImgToGallery = ({ preview, original, description }) => {
-  const imgInstance = basicLightbox.create(
-    `<img src="${original}">`,
-    {
-      onShow: (instance) => currentInstance = instance
-    }
-  );
-
-  galleryContainer.innerHTML += `
+function generateGallery (items, container) {
+  container.innerHTML = items.reduce((acc, { preview, original, description }) => acc += `
     <div class="gallery__item">
       <a class="gallery__link" href="${original}">
         <img
@@ -23,22 +12,38 @@ const addImgToGallery = ({ preview, original, description }) => {
         />
       </a>
     </div>
-  `;
+  `, '');
+  
+  let currentInstance = null;
+  const instances = {};
 
-  return imgInstance;
+  items.forEach(({ original }) => instances[original] = basicLightbox.create(
+    `<img src="${original}">`,
+    {
+      onShow: (instance) => currentInstance = instance
+    }
+  ));
+
+  return {
+    getCurrentInstance: () => currentInstance,
+    imgInstances: instances
+  };
 };
 
-const imgInstances = galleryItems.map(addImgToGallery);
+const galleryContainer = document.querySelector('.gallery');
 
-// show original image on click in modal window
-galleryContainer.querySelectorAll('img').forEach((img, i) => {
-  img.addEventListener('click', () => imgInstances[i].show());
+const { getCurrentInstance, imgInstances } = generateGallery(galleryItems, galleryContainer);
+
+galleryContainer.addEventListener('click', (e) => {
+  e.preventDefault();
+  
+  if (e.target.className === 'gallery') return;
+
+  const imgSource = e.target.getAttribute('data-source');
+  imgInstances[imgSource].show();
 });
+
 // hide modal if escape pressed
-document.addEventListener('keydown', e => {
-  if (e.keyCode === 27) currentInstance.close();
-});
-// prevent links redirecting
-galleryContainer.querySelectorAll('a').forEach(a => {
-  a.addEventListener('click', e => e.preventDefault());
+document.addEventListener('keydown', ({ keyCode }) => {
+  if (keyCode === 27) getCurrentInstance().close();
 });
